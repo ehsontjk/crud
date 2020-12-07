@@ -6,14 +6,16 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"github.com/ehsontjk/crud/pkg/customers"
+	"github.com/gorilla/mux"
 )
 type Server struct {
-	mux *http.ServeMux
+	mux *mux.Router
 	customerSvc *customers.Service
 }
 
 
-func NewServer(m *http.ServeMux, cSvc *customers.Service) *Server {
+func NewServer(m *mux.Router, cSvc *customers.Service) *Server {
 	return &Server{mux: m, customerSvc: cSvc}
 }
 
@@ -23,13 +25,13 @@ func (s *Server)ServeHTTP(w http.ResponseWriter, r *http.Request){
 
 
 func (s *Server) Init() {
-	s.mux.HandleFunc("/customers.getById", s.handleGetCustomerByID)
-	s.mux.HandleFunc("/customers.getAll", s.handleGetAllCustomers)
+	s.mux.HandleFunc("/customers/{id}", s.handleGetCustomerByID).Methods("GET")
+	s.mux.HandleFunc("/customers", s.handleGetAllCustomers).Methods("GET")
 	s.mux.HandleFunc("/customers.getAllActive", s.handleGetAllActiveCustomers)
 	s.mux.HandleFunc("/customers.blockById", s.handleBlockByID)
 	s.mux.HandleFunc("/customers.unblockById", s.handleUnBlockByID)
-	s.mux.HandleFunc("/customers.removeById", s.handleDelete)
-	s.mux.HandleFunc("/customers.save", s.handleSave)
+	s.mux.HandleFunc("/customers/{id}", s.handleDelete).Methods("DELETE")
+	s.mux.HandleFunc("/customers", s.handleSave).Methods("POST")
 }
 
 
@@ -62,7 +64,7 @@ func (s *Server) handleGetAllActiveCustomers(w http.ResponseWriter, r *http.Requ
 
 func (s *Server) handleGetCustomerByID(w http.ResponseWriter, r *http.Request) {
 	
-	idP := r.URL.Query().Get("id")
+	idP:= mux.Vars(r)["id"]
 
 	
 	id, err := strconv.ParseInt(idP, 10, 64)
@@ -144,79 +146,35 @@ func (s *Server) handleUnBlockByID(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, item)
 }
 
-func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
-	idP := r.URL.Query().Get("id")
-id, err := strconv.ParseInt(idP, 10, 64)
-	if err != nil {
-	errorWriter(w, http.StatusBadRequest, err)
-	return
-	}
-item, err := s.customerSvc.Delete(r.Context(), id)
-
-	if errors.Is(err, customers.ErrNotFound) {
-
-	errorWriter(w, http.StatusNotFound, err)
-	return
-	}
-
-	
-	if err != nil {
-	
-	errorWriter(w, http.StatusInternalServerError, err)
-	return
-	}
-	
-	respondJSON(w, item)
-}
-
-
 func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
+	
+	var item *customers.Customer
 
-	
-	idP := r.FormValue("id")
-	name := r.FormValue("name")
-	phone := r.FormValue("phone")
-
-	id, err := strconv.ParseInt(idP, 10, 64)
-	
-	if err != nil {
-	
-	errorWriter(w, http.StatusBadRequest, err)
-	return
-	}
-	
-	if name == "" && phone == "" {
-	
-	errorWriter(w, http.StatusBadRequest, err)
-	return
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+		
+		errorWriter(w, http.StatusBadRequest, err)
+		return
 	}
 
-	item := &customers.Customer{
-	ID:id,
-	Name:name,
-	Phone:phone,
 	
-	}
-
 	customer, err := s.customerSvc.Save(r.Context(), item)
-
-	
-	if err != nil {
-	
-	errorWriter(w, http.StatusInternalServerError, err)
-	return
+      if err != nil {
+		
+		errorWriter(w, http.StatusInternalServerError, err)
+		return
 	}
 	
 	respondJSON(w, customer)
 }
 
 
+
 func errorWriter(w http.ResponseWriter, httpSts int, err error) {
 	
 	log.Print(err)
+	
 	http.Error(w, http.StatusText(httpSts), httpSts)
 }
-
 
 func respondJSON(w http.ResponseWriter, iData interface{}) {
 
@@ -225,15 +183,46 @@ func respondJSON(w http.ResponseWriter, iData interface{}) {
 
 	
 	if err != nil {
+		
+		errorWriter(w, http.StatusInternalServerError, err)
+		return
+	}
 	
-	errorWriter(w, http.StatusInternalServerError, err)
-	return
+	w.Header().Set("Content-Type", "application/json")
+
+	_, err = w.Write(data)
+	
+	if err != nil {
+		
+		log.Print(err)
+	}
+}
+func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
+	
+	idP := mux.Vars(r)["id"]
+
+	
+	id, err := strconv.ParseInt(idP, 10, 64)
+	
+	if err != nil {
+		errorWriter(w, http.StatusBadRequest, err)
+		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(data)
+	
+	item, err := s.customerSvc.Delete(r.Context(), id)
+	
+	if errors.Is(err, customers.ErrNotFound) {
+		errorWriter(w, http.StatusNotFound, err)
+		return
+	}
+
+	
 	if err != nil {
 	
-	log.Print(err)
+		errorWriter(w, http.StatusInternalServerError, err)
+		return
 	}
+	
+	respondJSON(w, item)
 }
