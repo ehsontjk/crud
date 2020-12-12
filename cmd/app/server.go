@@ -7,33 +7,42 @@ import (
 	"net/http"
 	"strconv"
 	"github.com/ehsontjk/crud/pkg/customers"
+	"github.com/ehsontjk/crud/pkg/security"
+	"github.com/ehsontjk/crud/cmd/app/middleware"
 	"github.com/gorilla/mux"
 )
 type Server struct {
 	mux *mux.Router
 	customerSvc *customers.Service
+	securitySvc *security.Service
 }
 
 
-func NewServer(m *mux.Router, cSvc *customers.Service) *Server {
-	return &Server{mux: m, customerSvc: cSvc}
+func NewServer(m *mux.Router, cSvc *customers.Service, sSvc *security.Service) *Server {
+	return &Server{
+		mux: m,
+		customerSvc: cSvc,
+		securitySvc: sSvc,
+	}
 }
 
-func (s *Server)ServeHTTP(w http.ResponseWriter, r *http.Request){
-	s.mux.ServeHTTP(w,r)
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.mux.ServeHTTP(w, r)
 }
 
 
 func (s *Server) Init() {
 	s.mux.HandleFunc("/customers", s.handleGetAllCustomers).Methods("GET")
-	s.mux.HandleFunc("/customers", s.handleSave).Methods("POST")
 	s.mux.HandleFunc("/customers/active", s.handleGetAllActiveCustomers).Methods("GET")
 
 	s.mux.HandleFunc("/customers/{id}", s.handleGetCustomerByID).Methods("GET")
 	s.mux.HandleFunc("/customers/{id}/block", s.handleBlockByID).Methods("POST")
 	s.mux.HandleFunc("/customers/{id}/block", s.handleUnBlockByID).Methods("DELETE")
 	s.mux.HandleFunc("/customers/{id}", s.handleDelete).Methods("DELETE")
-}
+	s.mux.HandleFunc("/customers", s.handleSave).Methods("POST")
+
+	s.mux.Use(middleware.Basic(s.securitySvc.Auth))
+	}
 
 
 func (s *Server) handleGetAllCustomers(w http.ResponseWriter, r *http.Request) {

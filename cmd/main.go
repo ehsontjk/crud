@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"time"
 	"context"
+	"github.com/ehsontjk/crud/pkg/security"
     "github.com/ehsontjk/crud/pkg/customers"
 	"github.com/ehsontjk/crud/cmd/app"
 )
@@ -32,7 +33,9 @@ func execute(host, port, dbConnectionString string) (err error){
 			return pgxpool.Connect(connCtx, dbConnectionString)
 		},
 		customers.NewService,
-		func(server *app.Server)*http.Server{
+		security.NewService,
+		
+func(server *app.Server)*http.Server{
 			return &http.Server{
 				Addr:host+":"+port,
 				Handler: server,
