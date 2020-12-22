@@ -2,25 +2,25 @@ package app
 
 import (
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
-	"strconv"
-	"github.com/ehsontjk/crud/app/middleware"
-	"github.com/ehsontjk/crud/pkg/customers"
-	"github.com/ehsontjk/crud/pkg/security"
-	"golang.org/x/crypto/bcrypt"
+
+	"github.com/ehsontjk/crud/cmd/app/middleware"
+
 	"github.com/gorilla/mux"
+
+	"github.com/ehsontjk/crud/pkg/customers"
+	"github.com/ehsontjk/crud/pkg/managers"
 )
 
-
+//Server ...
 type Server struct {
 	mux         *mux.Router
 	customerSvc *customers.Service
 	managerSvc  *managers.Service
 }
 
-
+//NewServer ... создает новый сервер
 func NewServer(m *mux.Router, cSvc *customers.Service, mSvc *managers.Service) *Server {
 	return &Server{
 		mux:         m,
@@ -29,12 +29,12 @@ func NewServer(m *mux.Router, cSvc *customers.Service, mSvc *managers.Service) *
 	}
 }
 
-
+// функция для запуска хендлеров через мукс
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
 
-
+//Init ... инициализация сервера
 func (s *Server) Init() {
 
 	customersAuthenticateMd := middleware.Authenticate(s.customerSvc.IDByToken)
@@ -61,33 +61,37 @@ func (s *Server) Init() {
 
 }
 
-
+/*
++
++
+*/
+//это фукция для записывание ошибки в responseWriter или просто для ответа с ошиками
 func errorWriter(w http.ResponseWriter, httpSts int, err error) {
-	
+	//печатаем ошибку
 	log.Print(err)
-	
+	//отвечаем ошибку с помошю библиотеке net/http
 	http.Error(w, http.StatusText(httpSts), httpSts)
 }
 
-
+//это функция для ответа в формате JSON (он принимает интерфейс по этому мы можем в нем передат все что захочется)
 func respondJSON(w http.ResponseWriter, iData interface{}) {
 
-	
+	//преобразуем данные в JSON
 	data, err := json.Marshal(iData)
 
-	
+	//если получили ошибку то отвечаем с ошибкой
 	if err != nil {
-		
+		//вызываем фукцию для ответа с ошибкой
 		errorWriter(w, http.StatusInternalServerError, err)
 		return
 	}
-	
+	//поставить хедер "Content-Type: application/json" в ответе
 	w.Header().Set("Content-Type", "application/json")
-	
+	//пишем ответ
 	_, err = w.Write(data)
-	
+	//если получили ошибку
 	if err != nil {
-		
+		//печатаем ошибку
 		log.Print(err)
 	}
 }

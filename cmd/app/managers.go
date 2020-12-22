@@ -12,24 +12,25 @@ import (
 	"github.com/ehsontjk/crud/pkg/managers"
 )
 
+//ADMIN ...
 const ADMIN = "ADMIN"
 
 func (s *Server) handleManagerRegistration(w http.ResponseWriter, r *http.Request) {
 
 	id, err := middleware.Authentication(r.Context())
 	if err != nil {
-		
+		//вызываем фукцию для ответа с ошибкой
 		errorWriter(w, http.StatusBadRequest, err)
 		return
 	}
 	if id == 0 {
-		
+		//вызываем фукцию для ответа с ошибкой
 		errorWriter(w, http.StatusForbidden, err)
 		return
 	}
 
 	if !s.managerSvc.IsAdmin(r.Context(), id) {
-		
+		//вызываем фукцию для ответа с ошибкой
 		errorWriter(w, http.StatusForbidden, err)
 		return
 	}
