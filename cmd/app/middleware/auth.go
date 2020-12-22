@@ -34,7 +34,7 @@ func Authenticate(idFunc IDFunc) func(http.Handler) http.Handler {
 
 			id, err := idFunc(request.Context(), token)
 			if err != nil {
-				log.Print(err, "Authhhththth")
+				log.Print(err, "Auth")
 				http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
